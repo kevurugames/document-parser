@@ -2,7 +2,6 @@ services:
   parser:
     build: .
     ports:
-      - "8080:8080"
+      - "5003:5003"
     environment:
-      - PORT=8080
-
+      - PORT=5003

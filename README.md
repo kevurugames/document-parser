@@ -8,7 +8,7 @@ A microservice for converting PDF and DOCX files to Markdown.
 docker-compose up --build
 ```
 
-Server starts at `http://localhost:5002`
+Server starts at `http://localhost:5003`
 
 ## API
 
@@ -17,4 +17,3 @@ Converts PDF or DOCX to Markdown. File type is detected automatically.
 
 ### GET /health
 Health check endpoint.
-
