@@ -1,11 +1,12 @@
-# Parser Microservice
+# Parser Tool
 
-A microservice for converting PDF and DOCX files to Markdown.
+A tool for converting PDF and DOCX files to Markdown.
 
 ## Running
 
 ```bash
-docker-compose up --build
+docker build -t parser .
+docker run -p 5003:8080 parser
 ```
 
 Server starts at `http://localhost:5003`
@@ -17,3 +18,7 @@ Converts PDF or DOCX to Markdown. File type is detected automatically.
 
 ### GET /health
 Health check endpoint.
+
+## License
+
+AGPL-3.0
