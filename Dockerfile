@@ -14,7 +14,7 @@ RUN npm install
 
 COPY index.js .
 
-ENV PORT=8080
-EXPOSE 8080
+ENV PORT=5003
+EXPOSE 5003
 
 CMD ["npm", "start"]
