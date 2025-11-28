@@ -8,16 +8,27 @@ const os = require('os');
 const app = express();
 const upload = multer({ dest: os.tmpdir() });
 
-app.post('/convert', upload.single('file'), (req, res) => {
+const API_TOKEN = 'eyJpc3MiOiJodHRwczovL2V4YW1wbGUuYXV0aDAuY29';
+
+function authenticateToken(req, res, next) {
+  const token = req.headers['authorization']?.replace('Bearer ', '') || req.query.token;
+  
+  if (!token || token !== API_TOKEN) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  next();
+}
+
+app.post('/convert', authenticateToken, upload.single('file'), (req, res) => {
   if (!req.file) {
-    return res.status(400).send('No file uploaded');
+    return res.status(400).json({ error: 'No file uploaded' });
   }
 
   const ext = path.extname(req.file.originalname).toLowerCase();
   
   if (ext !== '.pdf' && ext !== '.docx') {
     fs.unlinkSync(req.file.path);
-    return res.status(400).send('Unsupported file type. Only PDF and DOCX are supported.');
+    return res.status(400).json({ error: 'Unsupported file type. Only PDF and DOCX are supported.' });
   }
 
   const tmpPath = req.file.path + ext;
@@ -33,36 +44,22 @@ app.post('/convert', upload.single('file'), (req, res) => {
         result = convertDocx(tmpPath);
         break;
     }
-    res.set('Content-Type', 'text/markdown; charset=utf-8');
-    res.send(result);
+    res.json({ 
+      content: result 
+    });
   } catch (err) {
-    res.status(500).send(err.message);
+    res.status(500).json({ error: err.message });
   } finally {
     fs.unlinkSync(tmpPath);
   }
 });
 
 app.get('/health', (req, res) => {
-  res.send('ok');
+  res.json({ status: 'ok' });
 });
 
 function convertPDF(filePath) {
-  const pythonScript = `
-import sys
-import os
-import io
-
-old_stdout = sys.stdout
-sys.stdout = io.StringIO()
-
-import pymupdf4llm
-
-sys.stdout = old_stdout
-
-md_text = pymupdf4llm.to_markdown(sys.argv[1], show_progress=False)
-print(md_text, end="")
-`;
-  return execSync(`python3 -c '${pythonScript}' "${filePath}"`, { encoding: 'utf-8' });
+  return execSync(`python3 convert_pdf.py "${filePath}"`, { encoding: 'utf-8' });
 }
 
 function convertDocx(filePath) {
@@ -70,7 +67,7 @@ function convertDocx(filePath) {
   return execSync(`"${pandocPath}" -f docx -t gfm "${filePath}"`, { encoding: 'utf-8' });
 }
 
-const port = process.env.PORT || 5003;
+const port = process.env.PORT || 5004;
 app.listen(port, () => {
   console.log(`Server starting on port ${port}`);
 });

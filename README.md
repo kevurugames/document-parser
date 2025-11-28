@@ -6,7 +6,7 @@ A tool for converting PDF and DOCX files to Markdown.
 
 ```bash
 docker build -t parser .
-docker run -p 5003:5003 parser
+docker run -p 5003:5003 -e API_TOKEN=your-secret-token parser
 ```
 
 Server starts at `http://localhost:5003`
@@ -16,8 +16,18 @@ Server starts at `http://localhost:5003`
 ### POST /convert
 Converts PDF or DOCX to Markdown. File type is detected automatically.
 
+**Authentication:** Requires Bearer token in `Authorization` header or `token` query parameter.
+
+**Example:**
+```bash
+curl -X POST \
+  -H "Authorization: Bearer your-secret-token" \
+  -F "file=@document.pdf" \
+  http://localhost:5003/convert
+```
+
 ### GET /health
-Health check endpoint.
+Health check endpoint (no authentication required).
 
 ## License
 

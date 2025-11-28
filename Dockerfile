@@ -12,9 +12,10 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install
 
-COPY app.js .
+COPY app.js convert_pdf.py ./
+RUN chmod +x convert_pdf.py
 
-ENV PORT=5003
-EXPOSE 5003
+ENV PORT=5004
+EXPOSE 5004
 
 CMD ["npm", "start"]
