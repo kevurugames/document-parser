@@ -9,7 +9,7 @@ docker build -t parser .
 docker run -p 5003:5003 -e API_TOKEN=your-secret-token parser
 ```
 
-Server starts at `http://localhost:5003`
+Server starts at `http://localhost:5004`
 
 ## API
 
