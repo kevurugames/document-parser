@@ -3,7 +3,7 @@ name: Deployment
 on:  
   push:
     branches:
-      - nodejs
+      - main
       - dev
   release:
     types:
@@ -41,7 +41,7 @@ jobs:
           COMMIT_MSG="$(git log -1 --pretty=%B)"
           echo "Commit: $COMMIT_MSG"
           if [[ "${{ github.event_name }}" == "push" ]]; then
-            if [[ "${{ github.ref_name }}" == 'nodejs' ]]; then
+            if [[ "${{ github.ref_name }}" == 'main' ]]; then
               echo "value=stage" >> $GITHUB_OUTPUT
             elif [[ "${{ github.ref_name }}" == 'dev' ]]; then
               echo "value=dev" >> $GITHUB_OUTPUT
