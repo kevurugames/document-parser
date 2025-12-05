@@ -1,0 +1,133 @@
+name: Deployment
+
+on:  
+  push:
+    branches:
+      - nodejs
+      - dev
+  release:
+    types:
+      - published
+
+jobs:
+  prepare:
+    name: Prepare
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Read Version
+        id: version
+        run: |
+          echo "Reading package.json"
+          PACKAGE_VERSION=0.0.1 
+          ## ./package.json
+          echo "value=$PACKAGE_VERSION-build.${{ github.run_id }}" >> $GITHUB_OUTPUT
+
+      - name: Check Version
+        run: |
+          VERSION="${{ steps.version.outputs.value }}"
+          if [[ "$VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-((0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*)(\.(0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*))*))?(\+([0-9a-zA-Z-]+(\.[0-9a-zA-Z-]+)*))?$ ]]; then
+            echo "Version: $VERSION"
+          else
+            echo "Invalid Version: $VERSION"
+            exit 1
+          fi
+
+      - name: Select Environment
+        id: environment
+        run: |
+          COMMIT_MSG="$(git log -1 --pretty=%B)"
+          echo "Commit: $COMMIT_MSG"
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            if [[ "${{ github.ref_name }}" == 'nodejs' ]]; then
+              echo "value=stage" >> $GITHUB_OUTPUT
+            elif [[ "${{ github.ref_name }}" == 'dev' ]]; then
+              echo "value=dev" >> $GITHUB_OUTPUT
+            fi
+            if [[ "$COMMIT_MSG" == *_ci* ]]; then
+              echo "condition=ci" >> $GITHUB_OUTPUT
+            else
+              echo "condition=all" >> $GITHUB_OUTPUT
+            fi
+          elif [[ "${{ github.event_name }}" == "release" && "${{ github.event.release.target_commitish }}" == 'main' ]]; then
+            echo "value=prod" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Check Environment
+        run: |
+          ENV="${{ steps.environment.outputs.value }}"
+          if [[ "$ENV" != "stage" && "$ENV" != "prod" && "$ENV" != "dev" ]]; then
+            echo "Invalid Environment: $ENV"
+            exit 1
+          fi
+          echo "Environment: $ENV"
+          echo "Condition: ${{ steps.environment.outputs.condition }}"
+
+    outputs:
+      version: ${{ steps.version.outputs.value }}
+      environment: ${{ steps.environment.outputs.value }}
+      condition: ${{ steps.environment.outputs.condition }}
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    if: needs.prepare.outputs.condition != 'ci'
+    needs: [prepare]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+
+      - name: Set repository info
+        run: | 
+              echo "REPO=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com" >> $GITHUB_ENV
+              echo $value
+
+      - name: Build and push Document Parcer image to ECR
+        uses: docker/build-push-action@v2
+        if: needs.prepare.outputs.environment == 'stage' || needs.prepare.outputs.environment == 'dev' ## || (needs.prepare.outputs.environment == 'prod'
+        with:
+          context: .
+          tags: ${{ env.REPO }}/document-parcer:${{ needs.prepare.outputs.version }}, ${{ env.REPO }}/document-parcer:${{ needs.prepare.outputs.environment }}-latest
+          push: true
+
+  rollout:
+    name: Rollout
+    if: needs.prepare.outputs.condition != 'ci'
+    needs: [prepare, build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Login to Amazon EKS for stage cluster
+        run: |
+          aws eks update-kubeconfig --name ${{ secrets.EKS_CLUSTER_NAME }} --region ${{ secrets.AWS_REGION }}
+
+      - name: Apply new workflow configurations for Document Parcer
+        run: |
+          kubectl apply -f .infra/${{ needs.prepare.outputs.environment }}/apps/document-parcer.yaml
+
+      - name: Rollout Document Parcer Deployment
+        run: |
+          kubectl rollout restart deploy document-parcer -n ${{ needs.prepare.outputs.environment }}
+          kubectl rollout status deploy document-parcer -n ${{ needs.prepare.outputs.environment }} --timeout=300s
