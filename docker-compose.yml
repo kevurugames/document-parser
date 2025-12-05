@@ -6,6 +6,5 @@ services:
       - "5004:5004"
     environment:
       - DOCUMENT_PARSER_API_TOKEN
-      - PANDOC_PATH
     restart: unless-stopped
 
