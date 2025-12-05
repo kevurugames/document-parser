@@ -17,21 +17,10 @@ spec:
       labels:
         app: document-parcer
     spec:
-      volumes:
-        - name: hoa-data
-          persistentVolumeClaim:
-            claimName: hoa-pvc
       containers:
       - name: document-parcer
         image: 533267116071.dkr.ecr.eu-central-1.amazonaws.com/document-parcer:stage-latest # The image to be used
         imagePullPolicy: Always
-        command: ["/bin/sh", "-c"]
-        args: 
-          - |
-            uvicorn main:app --host 0.0.0.0 --port 8000
-              # echo "--------Start migrate-----"
-              # sleep 1200
-              # echo "--------Finish seeding-----"
         ports:
           - containerPort: 5004 # App works on this port
         resources:
@@ -47,9 +36,6 @@ spec:
               name: main-configs-document-parcer-01
           - secretRef:
               name: main-creds-document-parcer-02
-        volumeMounts:
-          - mountPath: "/app/cache"
-            name: hoa-data
 ---
 apiVersion: v1
 kind: Service
