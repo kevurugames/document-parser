@@ -6,7 +6,7 @@ A tool for converting PDF and DOCX files to Markdown.
 
 ```bash
 docker build -t parser .
-docker run -p 5003:5003 -e API_TOKEN=your-secret-token parser
+docker run -p 5004:5004 -e API_TOKEN=your-secret-token parser
 ```
 
 Server starts at `http://localhost:5004`
