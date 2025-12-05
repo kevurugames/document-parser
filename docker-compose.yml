@@ -1,0 +1,10 @@
+version: '3.8'
+services:
+  document-parser:
+    build: .
+    ports:
+      - "5004:5004"
+    environment:
+      - DOCUMENT_PARSER_API_TOKEN
+    restart: unless-stopped
+
