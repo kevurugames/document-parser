@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: main-configs-document-parcer-01
+  namespace: stage
+data:
+  BASE_URL: "http://document-parcer.svc.cluster.local"
+  LM_STUDIO_URL: "https://chat-stg.zentegrio.com"
+  DOCUMENT_CONVERTER_URL: "http://document-parcer.svc.cluster.local:5004/convert"

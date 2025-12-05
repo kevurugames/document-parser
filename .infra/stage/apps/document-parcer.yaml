@@ -1,0 +1,71 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: document-parcer
+  namespace: stage
+  labels:
+    app: document-parcer
+spec:
+  replicas: 1  # Number of replicas of the application
+  selector:
+    matchLabels:
+      app: document-parcer
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: document-parcer
+    spec:
+      volumes:
+        - name: hoa-data
+          persistentVolumeClaim:
+            claimName: hoa-pvc
+      containers:
+      - name: document-parcer
+        image: 533267116071.dkr.ecr.eu-central-1.amazonaws.com/document-parcer:stage-latest # The image to be used
+        imagePullPolicy: Always
+        command: ["/bin/sh", "-c"]
+        args: 
+          - |
+            uvicorn main:app --host 0.0.0.0 --port 8000
+              # echo "--------Start migrate-----"
+              # sleep 1200
+              # echo "--------Finish seeding-----"
+        ports:
+          - containerPort: 5004 # App works on this port
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "256m"
+          limits:
+            memory: "1280Mi"
+            cpu: "1000m"
+
+        envFrom:
+          - configMapRef:
+              name: main-configs-document-parcer-01
+          - secretRef:
+              name: main-creds-document-parcer-02
+        volumeMounts:
+          - mountPath: "/app/cache"
+            name: hoa-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: document-parcer-svc
+  namespace: stage
+  annotations:
+    alb.ingress.kubernetes.io/healthcheck-path: /health
+    alb.ingress.kubernetes.io/healthcheck-interval-seconds: "300"
+    alb.ingress.kubernetes.io/healthcheck-timeout-seconds: "5"
+    alb.ingress.kubernetes.io/healthy-threshold-count: "3"
+    alb.ingress.kubernetes.io/unhealthy-threshold-count: "3"
+spec:
+  type: ClusterIP
+  selector:
+    app: document-parcer
+  ports:
+    - port: 5004
+      targetPort: 5004
